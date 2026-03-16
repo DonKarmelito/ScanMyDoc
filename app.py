@@ -30,13 +30,13 @@ with hero_col:
         <div>
             <div class="hero-badge">v2.0 · KarmelCodeLab</div>
             <p class="hero-title">Scan<span>My</span>Doc</p>
-            <p class="hero-sub">Inteligentny skaner dokumentów &nbsp;·&nbsp; PDF &nbsp;·&nbsp; Dark Mode</p>
+            <p class="hero-sub">Inteligentny skaner dokumentów &nbsp;·&nbsp; Scalanie PDF &nbsp;</p>
         </div>
         <div class="hero-line"></div>
         <div style="color:#8a7560;font-family:'Space Mono',monospace;font-size:.7rem;line-height:2;">
-            <div>📄 &nbsp;Kadrowanie perspektywiczne</div>
-            <div>🔲 &nbsp;Tryb automatyczny / ręczny</div>
-            <div>📎 &nbsp;Scalanie wielu PDF</div>
+            <div> &nbsp;Kadrowanie</div>
+            <div> &nbsp;Tryb automatyczny / ręczny</div>
+            <div> &nbsp;Scalanie wielu PDF</div>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -44,7 +44,7 @@ with logo_col:
     st.image("logo.png", width=150)
 
 # ── TABS ─────────────────────────────────────────────────────────────────────
-tab_skaner, tab_scalaj = st.tabs(["📄  SKANER", "📎  SCAL PDF"])
+tab_skaner, tab_scalaj = st.tabs(["SKANER", "SCAL PDF"])
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -142,7 +142,7 @@ with tab_skaner:
                     cv2.circle(preview_np, tuple(pt), 13, (255, 255, 255), 2)
 
                 with prev_col:
-                    st.markdown('<p class="preview-label">🔲 Podgląd kadrowania</p>', unsafe_allow_html=True)
+                    st.markdown('<p class="preview-label">Podgląd kadrowania</p>', unsafe_allow_html=True)
                     st.image(preview_np, use_column_width=True)
 
                 manual_points = np.array(
@@ -158,10 +158,10 @@ with tab_skaner:
         st.markdown("<br>", unsafe_allow_html=True)
         col1, col2 = st.columns(2, gap="large")
         with col1:
-            st.markdown('<p class="preview-label">📐 Po kadrowaniu</p>', unsafe_allow_html=True)
+            st.markdown('<p class="preview-label">Po kadrowaniu</p>', unsafe_allow_html=True)
             st.image(cv2.cvtColor(corrected, cv2.COLOR_BGR2RGB), use_column_width=True)
         with col2:
-            st.markdown('<p class="preview-label">🖨 Efekt skanera</p>', unsafe_allow_html=True)
+            st.markdown('<p class="preview-label">Efekt skanera</p>', unsafe_allow_html=True)
             st.image(scanned, clamp=True, use_column_width=True)
 
         st.markdown("<br>", unsafe_allow_html=True)
