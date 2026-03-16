@@ -28,7 +28,7 @@ with hero_col:
     st.markdown("""
     <div class="hero-wrap">
         <div>
-            <div class="hero-badge">v2.0 · KarmelCodeLab</div>
+            <div class="hero-badge">v2.5 · KarmelCodeLab</div>
             <p class="hero-title">Scan<span>My</span>Doc</p>
             <p class="hero-sub">Inteligentny skaner dokumentów &nbsp;·&nbsp; Scalanie PDF &nbsp;</p>
         </div>
