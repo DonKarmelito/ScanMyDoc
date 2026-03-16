@@ -8,24 +8,14 @@ import cv2
 import numpy as np
 import streamlit as st
 
-from canvas_utils import build_canvas_image, extract_points_from_canvas
 from pdf_utils import image_to_pdf_bytes, merge_pdfs
 from processing import decode_uploaded_image, process_auto, process_manual
 from styles import inject_styles
 
-# ── Opcjonalna zależność od drawable canvas ───────────────────────────────────
-st_canvas = None
-HAS_CANVAS = False
-try:
-    from streamlit_drawable_canvas import st_canvas
-    HAS_CANVAS = True
-except ImportError:
-    HAS_CANVAS = False
-
 # ── Konfiguracja strony (musi być pierwszym wywołaniem Streamlit) ─────────────
 st.set_page_config(
     page_title="ScanMyDoc",
-    page_icon="assets/uplogo.png",
+    page_icon="uplogo.png",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
@@ -40,21 +30,21 @@ with hero_col:
         <div>
             <div class="hero-badge">v2.0 · KarmelCodeLab</div>
             <p class="hero-title">Scan<span>My</span>Doc</p>
-            <p class="hero-sub">Inteligentny skaner dokumentów &nbsp;·&nbsp; Scalanie PDF &nbsp;</p>
+            <p class="hero-sub">Inteligentny skaner dokumentów &nbsp;·&nbsp; PDF &nbsp;·&nbsp; Dark Mode</p>
         </div>
         <div class="hero-line"></div>
         <div style="color:#8a7560;font-family:'Space Mono',monospace;font-size:.7rem;line-height:2;">
-            <div> &nbsp;Kadrowanie</div>
-            <div> &nbsp;Tryb automatyczny / ręczny</div>
-            <div> &nbsp;Scalanie wielu PDF</div>
+            <div>📄 &nbsp;Kadrowanie perspektywiczne</div>
+            <div>🔲 &nbsp;Tryb automatyczny / ręczny</div>
+            <div>📎 &nbsp;Scalanie wielu PDF</div>
         </div>
     </div>
     """, unsafe_allow_html=True)
 with logo_col:
-    st.image("assets/logo.png", width=150)
+    st.image("logo.png", width=150)
 
 # ── TABS ─────────────────────────────────────────────────────────────────────
-tab_skaner, tab_scalaj = st.tabs(["SKANER", "SCAL PDF"])
+tab_skaner, tab_scalaj = st.tabs(["📄  SKANER", "📎  SCAL PDF"])
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -94,9 +84,6 @@ with tab_skaner:
     with col_s3:
         auto_padding_ratio = st.slider("Margines (auto)", 0.0, 0.25, 0.08, 0.01)
 
-    if "canvas_reset_id" not in st.session_state:
-        st.session_state["canvas_reset_id"] = 0
-
     if uploaded:
         original_bytes = uploaded.read()
         try:
@@ -111,67 +98,57 @@ with tab_skaner:
                     image, threshold, min_area_ratio, auto_padding_ratio
                 )
             else:
-                if not HAS_CANVAS:
-                    st.error(
-                        "Brakuje biblioteki streamlit-drawable-canvas. "
-                        "Zainstaluj: `pip install streamlit-drawable-canvas`"
+                h, w = image.shape[:2]
+
+                st.info("Ustaw suwaki tak, żeby ramka (pomarańczowe linie) dokładnie obejmowała rogi dokumentu.")
+
+                # Podgląd po lewej, suwaki po prawej
+                prev_col, ctrl_col = st.columns([2, 1], gap="large")
+
+                with ctrl_col:
+                    st.markdown('<div class="card-label">↖ Lewy górny</div>', unsafe_allow_html=True)
+                    tl_x = st.slider("LG — poziomo", 0, w, int(w * 0.05), key="tl_x")
+                    tl_y = st.slider("LG — pionowo",  0, h, int(h * 0.05), key="tl_y")
+
+                    st.markdown('<div class="card-label">↗ Prawy górny</div>', unsafe_allow_html=True)
+                    tr_x = st.slider("PG — poziomo", 0, w, int(w * 0.95), key="tr_x")
+                    tr_y = st.slider("PG — pionowo",  0, h, int(h * 0.05), key="tr_y")
+
+                    st.markdown('<div class="card-label">↘ Prawy dolny</div>', unsafe_allow_html=True)
+                    br_x = st.slider("PD — poziomo", 0, w, int(w * 0.95), key="br_x")
+                    br_y = st.slider("PD — pionowo",  0, h, int(h * 0.95), key="br_y")
+
+                    st.markdown('<div class="card-label">↙ Lewy dolny</div>', unsafe_allow_html=True)
+                    bl_x = st.slider("LD — poziomo", 0, w, int(w * 0.05), key="bl_x")
+                    bl_y = st.slider("LD — pionowo",  0, h, int(h * 0.95), key="bl_y")
+
+                # Rysuj podgląd z ramką
+                preview_np = cv2.cvtColor(image.copy(), cv2.COLOR_BGR2RGB)
+                pts_draw = np.array(
+                    [[tl_x, tl_y], [tr_x, tr_y], [br_x, br_y], [bl_x, bl_y]],
+                    dtype=np.int32,
+                )
+                # Linie ramki
+                for i in range(4):
+                    cv2.line(
+                        preview_np,
+                        tuple(pts_draw[i]),
+                        tuple(pts_draw[(i + 1) % 4]),
+                        (245, 150, 10), 3,
                     )
-                    st.stop()
+                # Kółka w rogach
+                for pt in pts_draw:
+                    cv2.circle(preview_np, tuple(pt), 10, (245, 150, 10), -1)
+                    cv2.circle(preview_np, tuple(pt), 13, (255, 255, 255), 2)
 
-                st.info(
-                    "Kliknij 4 rogi dokumentu po kolei: "
-                    "lewy-górny → prawy-górny → prawy-dolny → lewy-dolny."
+                with prev_col:
+                    st.markdown('<p class="preview-label">🔲 Podgląd kadrowania</p>', unsafe_allow_html=True)
+                    st.image(preview_np, use_column_width=True)
+
+                manual_points = np.array(
+                    [[tl_x, tl_y], [tr_x, tr_y], [br_x, br_y], [bl_x, bl_y]],
+                    dtype="float32",
                 )
-
-                preview_image, sx, sy = build_canvas_image(image)
-                canvas_key = f"doc_canvas_{st.session_state['canvas_reset_id']}"
-
-                btn_col, hint_col = st.columns([1, 3])
-                with btn_col:
-                    if st.button("✕  Wyczyść punkty", type="secondary"):
-                        st.session_state["canvas_reset_id"] += 1
-                        st.rerun()
-                with hint_col:
-                    st.caption("Po kliknięciu 4 punktów dokument zostanie przycięty automatycznie.")
-
-                canvas_result = st_canvas(
-                    fill_color="rgba(245,150,10,0.35)",
-                    stroke_width=2,
-                    stroke_color="#f5960a",
-                    background_image=preview_image,
-                    update_streamlit=True,
-                    height=preview_image.height,
-                    width=preview_image.width,
-                    drawing_mode="point",
-                    point_display_radius=8,
-                    key=canvas_key,
-                )
-
-                clicked_points = extract_points_from_canvas(
-                    canvas_result.json_data if canvas_result else {}
-                )
-
-                if len(clicked_points) >= 2:
-                    preview_np = np.array(preview_image)
-                    pts = np.array(clicked_points[:4], dtype=np.int32)
-                    for i in range(len(pts) - 1):
-                        cv2.line(preview_np, tuple(pts[i]), tuple(pts[i + 1]), (245, 150, 10), 2)
-                    if len(pts) == 4:
-                        cv2.line(preview_np, tuple(pts[3]), tuple(pts[0]), (245, 150, 10), 2)
-                    st.image(preview_np)
-
-                st.caption(f"Zaznaczone punkty: {len(clicked_points)} / 4")
-                if len(clicked_points) < 4:
-                    st.stop()
-                if len(clicked_points) > 4:
-                    st.warning(
-                        "Używam pierwszych 4 punktów. "
-                        "Kliknij 'Wyczyść punkty', jeśli chcesz poprawić."
-                    )
-
-                manual_points = np.array(clicked_points[:4], dtype="float32")
-                manual_points[:, 0] *= sx
-                manual_points[:, 1] *= sy
                 corrected, scanned = process_manual(image, manual_points, threshold)
 
         except ValueError as exc:
@@ -218,7 +195,7 @@ with tab_scalaj:
 
     if uploaded_pdfs:
         st.markdown("<br>", unsafe_allow_html=True)
-        st.markdown('<div class="card-label">Kolejność scalania</div>', unsafe_allow_html=True)
+        st.markdown('<div class="card-label">📋 Kolejność scalania</div>', unsafe_allow_html=True)
 
         file_list_html = ""
         for i, f in enumerate(uploaded_pdfs, 1):
@@ -243,7 +220,7 @@ with tab_scalaj:
                     nazwa += ".pdf"
             with btn_col:
                 st.markdown("<br>", unsafe_allow_html=True)
-                merge_btn = st.button("SCAL PDF", type="primary", use_container_width=True)
+                merge_btn = st.button("🔗  SCAL PDF", type="primary", use_container_width=True)
 
             if merge_btn:
                 with st.spinner("Scalanie plików…"):
